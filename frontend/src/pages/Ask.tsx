@@ -1,7 +1,10 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { api, ApiError } from '../api'
 import { useAuth } from '../auth-context'
+import { ArrowLeft } from '../ui'
+
+const TITLE_MIN = 10
 
 export default function Ask() {
   const { user, loading } = useAuth()
@@ -40,28 +43,46 @@ export default function Ask() {
     }
   }
 
+  const short = title.trim().length < TITLE_MIN
+
   return (
-    <form onSubmit={submit} className="stack narrow">
+    <div className="narrow">
+      <Link to="/" className="back">
+        <ArrowLeft /> All questions
+      </Link>
       <h1>Ask a question</h1>
-      <input
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="What do you want to know?"
-        minLength={10}
-        maxLength={200}
-        required
-      />
-      <textarea
-        value={body}
-        onChange={(e) => setBody(e.target.value)}
-        placeholder="Add details (optional)"
-        rows={6}
-      />
-      {error && <p className="error">{error}</p>}
-      {notice && <p className="muted">{notice}</p>}
-      <button type="submit" disabled={posting}>
-        {posting ? 'Posting…' : 'Post question'}
-      </button>
-    </form>
+      <p className="lede">A clear, specific title gets better answers. Add details if they help.</p>
+
+      <form onSubmit={submit} className="stack" style={{ marginTop: 24 }}>
+        {notice && <p className="callout info">{notice}</p>}
+        {error && <p className="callout error">{error}</p>}
+        <div className="composer">
+          <input
+            className="title-input"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="What do you want to know?"
+            aria-label="Question title"
+            minLength={TITLE_MIN}
+            maxLength={200}
+            required
+            autoFocus
+          />
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Add context: what you’ve tried, what you expected (optional)"
+            aria-label="Details"
+            rows={6}
+          />
+          <div className="composer-foot">
+            <span>{short ? `Title needs at least ${TITLE_MIN} characters` : `${title.length}/200`}</span>
+            <button type="submit" className="primary" disabled={posting || short}>
+              {posting ? 'Posting…' : 'Post question'}
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
   )
 }

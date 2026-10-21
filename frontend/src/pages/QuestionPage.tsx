@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { api, ApiError, type QuestionDetail } from '../api'
 import { useAuth } from '../auth-context'
-import { timeAgo } from '../time'
+import { ArrowLeft, Byline, ChevronUp } from '../ui'
 
 export default function QuestionPage() {
   const id = Number(useParams().id)
@@ -57,61 +57,116 @@ export default function QuestionPage() {
     }
   }
 
-  if (!question) return error ? <p className="error">{error}</p> : <p className="muted">Loading…</p>
+  const back = (
+    <Link to="/" className="back">
+      <ArrowLeft /> All questions
+    </Link>
+  )
+
+  if (!question) {
+    return (
+      <div className="narrow">
+        {back}
+        {error ? (
+          <div className="panel empty">
+            <h3>Question not found</h3>
+            <p>It may have been removed, or it’s still waiting for review.</p>
+          </div>
+        ) : (
+          <p className="muted">Loading…</p>
+        )}
+      </div>
+    )
+  }
+
+  const count = question.answers.length
 
   return (
-    <article>
-      <h1>{question.title}</h1>
-      <div className="meta">
-        Asked by {question.author} · {timeAgo(question.created_at)}
+    <article className="narrow">
+      {back}
+
+      <header className="question-head">
+        <h1>{question.title}</h1>
+        <Byline name={question.author} at={question.created_at} size={24} />
+        {question.body && <p className="prose">{question.body}</p>}
+      </header>
+
+      <div className="section-head">
+        <h2>
+          {count} {count === 1 ? 'answer' : 'answers'}
+        </h2>
+        {count > 1 && <span className="faint">Ranked by votes and recency</span>}
       </div>
-      {question.body && <p className="body">{question.body}</p>}
 
-      <h2>
-        {question.answers.length} {question.answers.length === 1 ? 'answer' : 'answers'}
-      </h2>
-      {error && <p className="error">{error}</p>}
-      {notice && <p className="muted">{notice}</p>}
+      {error && <p className="callout error">{error}</p>}
 
-      <ul className="list">
-        {question.answers.map((a) => (
-          <li key={a.id} className="card answer">
-            <button
-              className={`vote ${a.voted_by_me ? 'voted' : ''}`}
-              onClick={() => vote(a.id)}
-              disabled={!user || user.username === a.author}
-              title={!user ? 'Log in to vote' : undefined}
-            >
-              ▲ {a.votes}
-            </button>
-            <div>
-              <p className="body">{a.body}</p>
-              <div className="meta">
-                {a.author} · {timeAgo(a.created_at)}
+      {count > 0 ? (
+        <ul className="rows panel">
+          {question.answers.map((a) => {
+            const own = user?.username === a.author
+            return (
+              <li key={a.id} className="answer">
+                <button
+                  className={`vote${a.voted_by_me ? ' voted' : ''}`}
+                  onClick={() => vote(a.id)}
+                  disabled={!user || own}
+                  aria-pressed={a.voted_by_me}
+                  aria-label={`Upvote (${a.votes})`}
+                  title={!user ? 'Log in to vote' : own ? 'You can’t vote on your own answer' : undefined}
+                >
+                  <ChevronUp />
+                  {a.votes}
+                </button>
+                <div>
+                  <p className="prose">{a.body}</p>
+                  <Byline name={a.author} at={a.created_at} size={20} />
+                </div>
+              </li>
+            )
+          })}
+        </ul>
+      ) : (
+        <div className="panel empty">
+          <h3>No answers yet</h3>
+          <p>{user ? 'Know something useful? Be the first to answer.' : 'Log in to write the first answer.'}</p>
+        </div>
+      )}
+
+      <section className="reply">
+        {notice && (
+          <p className="callout info" style={{ marginBottom: 14 }}>
+            {notice}
+          </p>
+        )}
+        {user ? (
+          <form onSubmit={submit}>
+            <h2>Your answer</h2>
+            <div className="composer">
+              <textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="Share what you know…"
+                rows={5}
+                aria-label="Your answer"
+                required
+              />
+              <div className="composer-foot">
+                <span>Be specific; plain text, line breaks are kept.</span>
+                <button type="submit" className="primary" disabled={posting || !draft.trim()}>
+                  {posting ? 'Posting…' : 'Post answer'}
+                </button>
               </div>
             </div>
-          </li>
-        ))}
-      </ul>
-
-      {user ? (
-        <form onSubmit={submit} className="stack">
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Write your answer"
-            rows={6}
-            required
-          />
-          <button type="submit" disabled={posting || !draft.trim()}>
-            {posting ? 'Posting…' : 'Post answer'}
-          </button>
-        </form>
-      ) : (
-        <p className="muted">
-          <Link to="/login">Log in</Link> to answer.
-        </p>
-      )}
+          </form>
+        ) : (
+          <div className="panel panel-pad" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+            <span className="muted">Log in to answer or vote.</span>
+            <Link to="/login" className="button primary small">
+              Log in
+            </Link>
+          </div>
+        )}
+      </section>
     </article>
   )
 }
