@@ -9,6 +9,7 @@ export default function QuestionPage() {
   const { user } = useAuth()
   const [question, setQuestion] = useState<QuestionDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [draft, setDraft] = useState('')
   const [posting, setPosting] = useState(false)
 
@@ -37,10 +38,18 @@ export default function QuestionPage() {
     e.preventDefault()
     setPosting(true)
     setError(null)
+    setNotice(null)
     try {
       const answer = await api.answer(id, draft)
-      setQuestion((q) => q && { ...q, answers: [...q.answers, answer] })
-      setDraft('')
+      if (answer.status === 'published') {
+        setQuestion((q) => q && { ...q, answers: [...q.answers, answer] })
+        setDraft('')
+      } else if (answer.status === 'pending') {
+        setNotice('Thanks! Your answer is being reviewed and will appear once it’s approved.')
+        setDraft('')
+      } else {
+        setError('Your answer was flagged by our spam filter and wasn’t posted.')
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not post answer')
     } finally {
@@ -62,6 +71,7 @@ export default function QuestionPage() {
         {question.answers.length} {question.answers.length === 1 ? 'answer' : 'answers'}
       </h2>
       {error && <p className="error">{error}</p>}
+      {notice && <p className="muted">{notice}</p>}
 
       <ul className="list">
         {question.answers.map((a) => (

@@ -29,6 +29,7 @@ class QuestionSummary(BaseModel):
     author: str
     created_at: datetime
     answer_count: int
+    status: str
 
 
 class AnswerIn(BaseModel):
@@ -42,6 +43,7 @@ class AnswerOut(BaseModel):
     created_at: datetime
     votes: int
     voted_by_me: bool
+    status: str
 
 
 class QuestionDetail(BaseModel):

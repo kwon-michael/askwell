@@ -139,3 +139,29 @@ def test_unpublished_answer_is_hidden(client, make_user, db_session):
     assert client.get("/questions").json()[0]["answer_count"] == 0
     assert client.get("/answers/top").json() == []
     assert client.post(f"/answers/{aid}/vote", headers=bob).status_code == 404
+
+
+def test_clean_post_is_published(client, make_user):
+    ada = make_user("ada")
+    res = client.post("/questions", json={"title": "How do B-trees stay balanced?"}, headers=ada)
+    assert res.json()["status"] == "published"
+
+
+def test_spam_question_is_rejected_and_hidden(client, make_user):
+    ada = make_user("ada")
+    res = client.post(
+        "/questions", json={"title": "Free crypto giveaway, click here"}, headers=ada
+    )
+    assert res.status_code == 201
+    assert res.json()["status"] == "rejected"
+    assert client.get("/questions").json() == []
+
+
+def test_link_from_new_account_is_held_for_review(client, make_user):
+    ada, bob = make_user("ada"), make_user("bob")
+    qid = ask(client, ada)
+    res = client.post(
+        f"/questions/{qid}/answers", json={"body": "See https://example.com"}, headers=bob
+    )
+    assert res.json()["status"] == "pending"
+    assert client.get(f"/questions/{qid}").json()["answers"] == []

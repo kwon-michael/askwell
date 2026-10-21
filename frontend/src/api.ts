@@ -1,12 +1,15 @@
 const BASE = import.meta.env.VITE_API_URL ?? '/api'
 const TOKEN_KEY = 'askwell_token'
 
+export type ContentStatus = 'pending' | 'published' | 'rejected'
+
 export type QuestionSummary = {
   id: number
   title: string
   author: string
   created_at: string
   answer_count: number
+  status: ContentStatus
 }
 
 export type Answer = {
@@ -16,6 +19,7 @@ export type Answer = {
   created_at: string
   votes: number
   voted_by_me: boolean
+  status: ContentStatus
 }
 
 export type QuestionDetail = {

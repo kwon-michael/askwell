@@ -9,6 +9,7 @@ export default function Ask() {
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [posting, setPosting] = useState(false)
 
   if (loading) return null
@@ -18,9 +19,21 @@ export default function Ask() {
     e.preventDefault()
     setPosting(true)
     setError(null)
+    setNotice(null)
     try {
       const q = await api.ask(title, body)
-      navigate(`/q/${q.id}`)
+      if (q.status === 'published') {
+        navigate(`/q/${q.id}`)
+        return
+      }
+      if (q.status === 'pending') {
+        setNotice('Thanks! Your question is being reviewed and will appear once it’s approved.')
+        setTitle('')
+        setBody('')
+      } else {
+        setError('Your question was flagged by our spam filter and wasn’t posted.')
+      }
+      setPosting(false)
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not post question')
       setPosting(false)
@@ -45,6 +58,7 @@ export default function Ask() {
         rows={6}
       />
       {error && <p className="error">{error}</p>}
+      {notice && <p className="muted">{notice}</p>}
       <button type="submit" disabled={posting}>
         {posting ? 'Posting…' : 'Post question'}
       </button>

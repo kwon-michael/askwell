@@ -62,8 +62,12 @@ See [`backend/app/routers/answers.py`](backend/app/routers/answers.py).
 
 **Moderation status.** Questions and answers carry a `status` (`pending`,
 `published`, `rejected`). Every read path (feed, question page, top answers,
-voting, answering) only sees `published` rows. For now everything is published
-on creation; the moderation pipeline will be what moves content between states.
+voting, answering) only sees `published` rows. The status is set on creation
+by the rule filter in [`backend/app/moderation.py`](backend/app/moderation.py):
+blocked spam phrases and more than three links are rejected outright; links from
+accounts under a day old, mostly-capitals text, and long runs of one letter are
+held as `pending`; everything else is published. Authors are told when their post
+is held or rejected, but not which rule fired, so spammers can't tune against it.
 
 **Votes.** One row per (user, answer) with a unique constraint, so a race between
 two double-clicks can't produce two votes. You can't vote on your own answer.

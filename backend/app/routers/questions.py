@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from ..db import get_db
 from ..models import Answer, ContentStatus, Question, User, Vote
+from ..moderation import initial_status
 from ..ranking import hot_score
 from ..schemas import AnswerOut, QuestionDetail, QuestionIn, QuestionSummary
 from ..security import get_current_user, get_optional_user
@@ -44,6 +45,7 @@ def list_questions(
             author=q.author.username,
             created_at=q.created_at,
             answer_count=count,
+            status=q.status,
         )
         for q, count in rows
     ]
@@ -55,11 +57,22 @@ def create_question(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    q = Question(author_id=user.id, title=data.title.strip(), body=data.body.strip())
+    title, body = data.title.strip(), data.body.strip()
+    q = Question(
+        author_id=user.id,
+        title=title,
+        body=body,
+        status=initial_status(f"{title}\n{body}", user),
+    )
     db.add(q)
     db.commit()
     return QuestionSummary(
-        id=q.id, title=q.title, author=user.username, created_at=q.created_at, answer_count=0
+        id=q.id,
+        title=q.title,
+        author=user.username,
+        created_at=q.created_at,
+        answer_count=0,
+        status=q.status,
     )
 
 
@@ -101,6 +114,7 @@ def get_question(
             created_at=a.created_at,
             votes=votes,
             voted_by_me=a.id in my_votes,
+            status=a.status,
         )
         for a, votes in rows
     ]
