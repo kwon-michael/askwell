@@ -3,6 +3,9 @@
 A Q&A community app: people ask questions, write answers, and upvote the good ones.
 Built with FastAPI, PostgreSQL, and React + TypeScript.
 
+**Live demo: https://askwell-caav.onrender.com** (free tier: the first visit after
+a quiet spell can take up to a minute while the server wakes up)
+
 ## Status
 
 - [x] Accounts (bcrypt passwords, JWT auth)
@@ -12,7 +15,7 @@ Built with FastAPI, PostgreSQL, and React + TypeScript.
 - [x] Tests + CI
 - [x] Moderation pipeline (rule filter, then LLM classifier, then human review queue)
 - [ ] A/B testing framework (hash-based bucketing, exposure and outcome events)
-- [ ] Deploy
+- [x] Deploy (Render + Neon Postgres)
 
 ## Running locally
 
