@@ -5,6 +5,7 @@ import Ask from './pages/Ask'
 import Feed from './pages/Feed'
 import Login from './pages/Login'
 import QuestionPage from './pages/QuestionPage'
+import Review from './pages/Review'
 
 function Header() {
   const { user, logout } = useAuth()
@@ -19,6 +20,7 @@ function Header() {
             <Link to="/ask" className="button">
               Ask
             </Link>
+            {user.is_admin && <Link to="/review">Review</Link>}
             <span className="muted">{user.username}</span>
             <button className="link" onClick={logout}>
               Log out
@@ -43,6 +45,7 @@ export default function App() {
             <Route path="/q/:id" element={<QuestionPage />} />
             <Route path="/ask" element={<Ask />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/review" element={<Review />} />
             <Route path="*" element={<p className="muted">Page not found.</p>} />
           </Routes>
         </main>

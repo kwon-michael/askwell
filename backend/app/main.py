@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import CORS_ORIGINS
-from .routers import answers, auth, questions
+from .routers import answers, auth, moderation, questions
 
 
 app = FastAPI(title="Askwell")
@@ -16,6 +16,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(questions.router)
 app.include_router(answers.router)
+app.include_router(moderation.router)
 
 
 @app.get("/health")

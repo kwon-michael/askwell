@@ -30,4 +30,4 @@ def login(creds: Credentials, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)):
-    return UserOut(id=user.id, username=user.username)
+    return UserOut(id=user.id, username=user.username, is_admin=user.is_admin)

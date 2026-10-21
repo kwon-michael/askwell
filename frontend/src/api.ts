@@ -41,7 +41,21 @@ export type TopAnswer = {
   votes: number
 }
 
-export type User = { id: number; username: string }
+export type User = { id: number; username: string; is_admin: boolean }
+
+export type ReviewItem = {
+  id: number
+  kind: 'question' | 'answer'
+  question_id: number
+  question_title: string
+  body: string
+  author: string
+  reason: string
+  status: ContentStatus
+  created_at: string
+  reviewed_by: string | null
+  decided_at: string | null
+}
 
 export class ApiError extends Error {
   status: number
@@ -91,5 +105,10 @@ export const api = {
   answer: (questionId: number, body: string) =>
     post<Answer>(`/questions/${questionId}/answers`, { body }),
   vote: (answerId: number) => post<VoteResult>(`/answers/${answerId}/vote`),
+
+  reviewQueue: (status: 'pending' | 'rejected') =>
+    request<ReviewItem[]>(`/moderation/queue?status=${status}`),
+  decide: (reviewId: number, decision: 'approve' | 'reject') =>
+    post<ReviewItem>(`/moderation/reviews/${reviewId}`, { decision }),
   topAnswers: () => request<TopAnswer[]>('/answers/top'),
 }

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -16,6 +17,7 @@ class Token(BaseModel):
 class UserOut(BaseModel):
     id: int
     username: str
+    is_admin: bool
 
 
 class QuestionIn(BaseModel):
@@ -67,3 +69,21 @@ class TopAnswer(BaseModel):
     question_title: str
     author: str
     votes: int
+
+
+class ReviewItem(BaseModel):
+    id: int
+    kind: Literal["question", "answer"]
+    question_id: int
+    question_title: str
+    body: str
+    author: str
+    reason: str
+    status: str
+    created_at: datetime
+    reviewed_by: str | None
+    decided_at: datetime | None
+
+
+class ReviewDecision(BaseModel):
+    decision: Literal["approve", "reject"]

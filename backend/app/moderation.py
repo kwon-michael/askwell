@@ -2,19 +2,19 @@
 
 Every new question and answer goes through check_rules(). Obvious spam is
 rejected, clean text is published, and anything suspicious but not clear-cut
-is escalated and waits as 'pending'. Later stages (an LLM classifier, then a
-human review queue) will decide what happens to escalated content.
+is escalated and waits as 'pending' in the review queue (routers/moderation.py)
+until a moderator decides. An LLM classifier will later sit between the rules
+and the queue, so people only see what the model is unsure about.
 """
 
-import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 
-from .models import ContentStatus, User, utcnow
+from sqlalchemy.orm import Session
 
-log = logging.getLogger(__name__)
+from .models import Answer, ContentStatus, ModerationReview, Question, User, utcnow
 
 
 class Verdict(StrEnum):
@@ -82,8 +82,10 @@ def check_rules(text: str, author_created_at: datetime, now: datetime | None = N
     return RuleResult(Verdict.APPROVE)
 
 
-def initial_status(text: str, author: User) -> ContentStatus:
+def apply_rules(db: Session, content: Question | Answer, text: str, author: User) -> None:
+    """Set the status of new content and, unless it's approved, record why."""
     result = check_rules(text, author.created_at)
+    content.status = STATUS_FOR_VERDICT[result.verdict]
     if result.verdict is not Verdict.APPROVE:
-        log.info("moderation: %s by user %s (%s)", result.verdict, author.id, result.reason)
-    return STATUS_FOR_VERDICT[result.verdict]
+        target = {"question": content} if isinstance(content, Question) else {"answer": content}
+        db.add(ModerationReview(reason=result.reason, **target))

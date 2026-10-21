@@ -229,3 +229,8 @@ textarea {
 .error {
   color: var(--accent);
 }
+
+.actions {
+  display: flex;
+  gap: 8px;
+}

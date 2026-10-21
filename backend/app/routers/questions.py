@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from ..db import get_db
 from ..models import Answer, ContentStatus, Question, User, Vote
-from ..moderation import initial_status
+from ..moderation import apply_rules
 from ..ranking import hot_score
 from ..schemas import AnswerOut, QuestionDetail, QuestionIn, QuestionSummary
 from ..security import get_current_user, get_optional_user
@@ -58,13 +58,9 @@ def create_question(
     db: Session = Depends(get_db),
 ):
     title, body = data.title.strip(), data.body.strip()
-    q = Question(
-        author_id=user.id,
-        title=title,
-        body=body,
-        status=initial_status(f"{title}\n{body}", user),
-    )
+    q = Question(author_id=user.id, title=title, body=body)
     db.add(q)
+    apply_rules(db, q, f"{title}\n{body}", user)
     db.commit()
     return QuestionSummary(
         id=q.id,

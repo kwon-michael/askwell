@@ -10,7 +10,10 @@ Built with FastAPI, PostgreSQL, and React + TypeScript.
 - [x] Answer ranking with time decay
 - [x] "Top answers this week" report (raw SQL)
 - [x] Tests + CI
-- [ ] Moderation pipeline (rule filter, then LLM classifier, then human review queue)
+- [ ] Moderation pipeline
+  - [x] Rule filter
+  - [x] Human review queue
+  - [ ] LLM classifier between the two
 - [ ] A/B testing framework (hash-based bucketing, exposure and outcome events)
 - [ ] Deploy
 
@@ -38,6 +41,13 @@ The dev server proxies `/api/*` to the backend, so there's no CORS setup in deve
 Schema changes go through Alembic: edit `app/models.py`, then
 `alembic revision --autogenerate -m "..."` and review the generated file in
 `migrations/versions/`. A test fails if the models and migrations drift apart.
+
+To see the review queue, make your account a moderator, then log in again
+(a **Review** link appears in the header):
+
+```bash
+cd backend && python -m app.make_admin <username>     # --revoke to undo
+```
 
 If your local database predates migrations (it was created by the old
 `create_all` on startup), run `alembic stamp 0001` once, then `alembic upgrade head`.
@@ -69,6 +79,12 @@ accounts under a day old, mostly-capitals text, and long runs of one letter are
 held as `pending`; everything else is published. Authors are told when their post
 is held or rejected, but not which rule fired, so spammers can't tune against it.
 
+**Review queue.** Anything the rules don't approve gets a `moderation_reviews` row
+with the reason. Moderators work through held content oldest-first and can also
+browse rejected content to overturn false positives. The verdict lives on the
+content itself; the review row records the rule's reason and who decided last.
+See [`backend/app/routers/moderation.py`](backend/app/routers/moderation.py).
+
 **Votes.** One row per (user, answer) with a unique constraint, so a race between
 two double-clicks can't produce two votes. You can't vote on your own answer.
 
@@ -84,3 +100,5 @@ two double-clicks can't produce two votes. You can't vote on your own answer.
 | POST | `/questions/{id}/answers` | required |
 | POST | `/answers/{id}/vote` (toggles) | required |
 | GET | `/answers/top?days=7` | none |
+| GET | `/moderation/queue?status=pending\|rejected` | moderator |
+| POST | `/moderation/reviews/{id}` (`approve` or `reject`) | moderator |

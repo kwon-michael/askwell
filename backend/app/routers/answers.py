@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import Answer, ContentStatus, Question, User, Vote
-from ..moderation import initial_status
+from ..moderation import apply_rules
 from ..schemas import AnswerIn, AnswerOut, TopAnswer, VoteResult
 from ..security import get_current_user
 
@@ -60,13 +60,9 @@ def create_answer(
     if question is None or question.status != ContentStatus.PUBLISHED:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
     body = data.body.strip()
-    answer = Answer(
-        question_id=question_id,
-        author_id=user.id,
-        body=body,
-        status=initial_status(body, user),
-    )
+    answer = Answer(question_id=question_id, author_id=user.id, body=body)
     db.add(answer)
+    apply_rules(db, answer, body, user)
     db.commit()
     return AnswerOut(
         id=answer.id,

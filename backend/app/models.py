@@ -1,7 +1,16 @@
 from datetime import datetime, timezone
 from enum import StrEnum
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+    false,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -31,6 +40,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(32), unique=True, index=True)
     password_hash: Mapped[str] = mapped_column(String(128))
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -74,3 +84,38 @@ class Vote(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, index=True
     )
+
+
+class ModerationReview(Base):
+    """A question or answer the rule filter didn't simply approve.
+
+    Escalated content shows up in the review queue; rejected content is kept
+    too, so a moderator can overturn a false positive. The current verdict is
+    the content's own status; reviewer_id and decided_at record who last
+    decided and when.
+    """
+
+    __tablename__ = "moderation_reviews"
+    __table_args__ = (
+        CheckConstraint(
+            "(question_id IS NULL) <> (answer_id IS NULL)", name="ck_review_one_target"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    question_id: Mapped[int | None] = mapped_column(ForeignKey("questions.id"), unique=True)
+    answer_id: Mapped[int | None] = mapped_column(ForeignKey("answers.id"), unique=True)
+    reason: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, index=True
+    )
+    reviewer_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    question: Mapped[Question | None] = relationship()
+    answer: Mapped[Answer | None] = relationship()
+    reviewer: Mapped[User | None] = relationship()
+
+    @property
+    def content(self) -> Question | Answer:
+        return self.question if self.question is not None else self.answer
