@@ -61,6 +61,29 @@ Tests run against in-memory SQLite and don't need Postgres:
 cd backend && pytest
 ```
 
+## Deploying
+
+Production is a single Docker image ([`Dockerfile`](Dockerfile)): the React app is
+built and served by FastAPI, with the API under `/api` (the same path the dev
+server proxies, so the frontend code doesn't change). Migrations run on every
+start. It's set up for Render's free tier with a free Neon Postgres database.
+Render's own free Postgres is deleted after 30 days.
+
+1. Create a Neon project and copy its connection string.
+2. In Render: **New > Blueprint**, pick this repo ([`render.yaml`](render.yaml)),
+   and paste the Neon string as `DATABASE_URL`. `JWT_SECRET` is generated for you.
+3. Optionally add `ANTHROPIC_API_KEY` under the service's Environment tab to turn on
+   the moderation classifier.
+4. Make yourself a moderator from your own machine, against the production database:
+   ```bash
+   cd backend
+   DATABASE_URL="<neon connection string>" python -m app.make_admin <username>
+   ```
+
+The app refuses to start in production without a real `JWT_SECRET`. On the free
+tier the service sleeps after 15 idle minutes, so the first request after that
+takes a moment.
+
 ## Design notes
 
 **Ranking.** Answers on a question are sorted by `(votes + 1) / (age_hours + 2) ^ 1.8`,

@@ -1,0 +1,15 @@
+# Render Blueprint: New > Blueprint in the Render dashboard, pick this repo.
+# The database lives on Neon (Render's free Postgres expires after 30 days).
+services:
+  - type: web
+    name: askwell
+    runtime: docker
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false # paste the Neon connection string when prompted
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MODERATION_MODEL
+        value: claude-haiku-5-5
