@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from ..db import get_db
-from ..models import Answer, Question, User, Vote
+from ..models import Answer, ContentStatus, Question, User, Vote
 from ..ranking import hot_score
 from ..schemas import AnswerOut, QuestionDetail, QuestionIn, QuestionSummary
 from ..security import get_current_user, get_optional_user
@@ -23,7 +23,11 @@ def list_questions(
     answer_count = func.count(Answer.id).label("answer_count")
     stmt = (
         select(Question, answer_count)
-        .outerjoin(Answer, Answer.question_id == Question.id)
+        .outerjoin(
+            Answer,
+            (Answer.question_id == Question.id) & (Answer.status == ContentStatus.PUBLISHED),
+        )
+        .where(Question.status == ContentStatus.PUBLISHED)
         .options(selectinload(Question.author))
         .group_by(Question.id)
     )
@@ -66,13 +70,13 @@ def get_question(
     db: Session = Depends(get_db),
 ):
     q = db.get(Question, question_id, options=[selectinload(Question.author)])
-    if q is None:
+    if q is None or q.status != ContentStatus.PUBLISHED:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
 
     rows = db.execute(
         select(Answer, func.count(Vote.id))
         .outerjoin(Vote, Vote.answer_id == Answer.id)
-        .where(Answer.question_id == question_id)
+        .where(Answer.question_id == question_id, Answer.status == ContentStatus.PUBLISHED)
         .options(selectinload(Answer.author))
         .group_by(Answer.id)
     ).all()

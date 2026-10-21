@@ -5,7 +5,7 @@ from sqlalchemy import DateTime, bindparam, delete, func, select, text
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Answer, Question, User, Vote
+from ..models import Answer, ContentStatus, Question, User, Vote
 from ..schemas import AnswerIn, AnswerOut, TopAnswer, VoteResult
 from ..security import get_current_user
 
@@ -25,6 +25,7 @@ TOP_ANSWERS_SQL = text(
     JOIN questions q ON q.id = a.question_id
     JOIN users u     ON u.id = a.author_id
     JOIN votes v     ON v.answer_id = a.id AND v.created_at >= :since
+    WHERE a.status = 'published' AND q.status = 'published'
     GROUP BY a.id, a.question_id, q.title, u.username
     ORDER BY votes DESC, a.id DESC
     LIMIT :limit
@@ -54,7 +55,8 @@ def create_answer(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    if db.get(Question, question_id) is None:
+    question = db.get(Question, question_id)
+    if question is None or question.status != ContentStatus.PUBLISHED:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Question not found")
     answer = Answer(question_id=question_id, author_id=user.id, body=data.body.strip())
     db.add(answer)
@@ -76,7 +78,7 @@ def toggle_vote(
     db: Session = Depends(get_db),
 ):
     answer = db.get(Answer, answer_id)
-    if answer is None:
+    if answer is None or answer.status != ContentStatus.PUBLISHED:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Answer not found")
     if answer.author_id == user.id:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "You can't vote on your own answer")

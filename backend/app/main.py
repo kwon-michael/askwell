@@ -1,21 +1,11 @@
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import CORS_ORIGINS
-from .db import Base, engine
 from .routers import answers, auth, questions
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Fine while the schema is young. Swap for Alembic migrations before deploying.
-    Base.metadata.create_all(engine)
-    yield
-
-
-app = FastAPI(title="Askwell", lifespan=lifespan)
+app = FastAPI(title="Askwell")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,

@@ -1,3 +1,6 @@
+from app.models import Answer, ContentStatus, Question
+
+
 def ask(client, headers, title="How do B-trees stay balanced?"):
     res = client.post("/questions", json={"title": title, "body": ""}, headers=headers)
     assert res.status_code == 201, res.text
@@ -106,3 +109,33 @@ def test_top_answers(client, make_user):
 
 def test_missing_question_404(client):
     assert client.get("/questions/999").status_code == 404
+
+
+def set_status(db_session, model, id_, status):
+    with db_session() as db:
+        db.get(model, id_).status = status
+        db.commit()
+
+
+def test_unpublished_question_is_hidden(client, make_user, db_session):
+    ada = make_user("ada")
+    qid = ask(client, ada)
+    set_status(db_session, Question, qid, ContentStatus.PENDING)
+
+    assert client.get("/questions").json() == []
+    assert client.get(f"/questions/{qid}").status_code == 404
+    res = client.post(f"/questions/{qid}/answers", json={"body": "Hi"}, headers=ada)
+    assert res.status_code == 404
+
+
+def test_unpublished_answer_is_hidden(client, make_user, db_session):
+    ada, bob = make_user("ada"), make_user("bob")
+    qid = ask(client, ada)
+    aid = answer(client, ada, qid)
+    client.post(f"/answers/{aid}/vote", headers=bob)
+    set_status(db_session, Answer, aid, ContentStatus.REJECTED)
+
+    assert client.get(f"/questions/{qid}").json()["answers"] == []
+    assert client.get("/questions").json()[0]["answer_count"] == 0
+    assert client.get("/answers/top").json() == []
+    assert client.post(f"/answers/{aid}/vote", headers=bob).status_code == 404

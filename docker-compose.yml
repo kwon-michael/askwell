@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: askwell
       POSTGRES_DB: askwell
     ports:
-      - "5432:5432"
+      - "5434:5432"  # 5432/5433 are often taken by locally installed Postgres
     volumes:
       - pgdata:/var/lib/postgresql/data
 

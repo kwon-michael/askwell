@@ -29,8 +29,6 @@ def client(db_session):
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    # Not used as a context manager, so the lifespan hook (which talks to
-    # Postgres) never runs.
     yield TestClient(app)
     app.dependency_overrides.clear()
 

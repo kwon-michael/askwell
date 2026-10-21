@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from enum import StrEnum
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -8,6 +9,20 @@ from .db import Base
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+class ContentStatus(StrEnum):
+    PENDING = "pending"  # waiting on the moderation pipeline or a human reviewer
+    PUBLISHED = "published"
+    REJECTED = "rejected"
+
+
+def status_column() -> Mapped[str]:
+    return mapped_column(
+        String(16),
+        default=ContentStatus.PUBLISHED,
+        server_default=ContentStatus.PUBLISHED.value,
+    )
 
 
 class User(Base):
@@ -26,6 +41,7 @@ class Question(Base):
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     title: Mapped[str] = mapped_column(String(200))
     body: Mapped[str] = mapped_column(Text, default="")
+    status: Mapped[str] = status_column()
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, index=True
     )
@@ -41,6 +57,7 @@ class Answer(Base):
     question_id: Mapped[int] = mapped_column(ForeignKey("questions.id"), index=True)
     author_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     body: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = status_column()
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     author: Mapped[User] = relationship()
