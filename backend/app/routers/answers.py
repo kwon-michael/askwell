@@ -1,12 +1,13 @@
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import DateTime, bindparam, delete, func, select, text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
-from ..db import get_db
+from ..classifier import Classifier, get_classifier
+from ..db import get_db, get_session_factory
 from ..models import Answer, ContentStatus, Question, User, Vote
-from ..moderation import apply_rules
+from ..moderation import apply_rules, classify_review
 from ..schemas import AnswerIn, AnswerOut, TopAnswer, VoteResult
 from ..security import get_current_user
 
@@ -53,8 +54,11 @@ def top_answers(
 def create_answer(
     question_id: int,
     data: AnswerIn,
+    background: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    classifier: Classifier | None = Depends(get_classifier),
+    session_factory: sessionmaker = Depends(get_session_factory),
 ):
     question = db.get(Question, question_id)
     if question is None or question.status != ContentStatus.PUBLISHED:
@@ -62,8 +66,10 @@ def create_answer(
     body = data.body.strip()
     answer = Answer(question_id=question_id, author_id=user.id, body=body)
     db.add(answer)
-    apply_rules(db, answer, body, user)
+    review = apply_rules(db, answer, body, user)
     db.commit()
+    if review is not None and classifier is not None:
+        background.add_task(classify_review, session_factory, classifier, review.id)
     return AnswerOut(
         id=answer.id,
         body=answer.body,

@@ -111,6 +111,9 @@ class ModerationReview(Base):
     )
     reviewer_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # What the LLM classifier said, if it ran and answered.
+    llm_verdict: Mapped[str | None] = mapped_column(String(16))
+    llm_reason: Mapped[str | None] = mapped_column(String(500))
 
     question: Mapped[Question | None] = relationship()
     answer: Mapped[Answer | None] = relationship()
@@ -119,3 +122,10 @@ class ModerationReview(Base):
     @property
     def content(self) -> Question | Answer:
         return self.question if self.question is not None else self.answer
+
+    @property
+    def content_text(self) -> str:
+        """The text the moderation pipeline looks at."""
+        if self.question is not None:
+            return f"{self.question.title}\n{self.question.body}"
+        return self.answer.body

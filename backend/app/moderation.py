@@ -2,19 +2,23 @@
 
 Every new question and answer goes through check_rules(). Obvious spam is
 rejected, clean text is published, and anything suspicious but not clear-cut
-is escalated and waits as 'pending' in the review queue (routers/moderation.py)
-until a moderator decides. An LLM classifier will later sit between the rules
-and the queue, so people only see what the model is unsure about.
+is escalated and waits as 'pending'. Escalated content then goes to the LLM
+classifier (classifier.py) in a background task, which decides the clear cases;
+whatever it can't decide stays in the human review queue (routers/moderation.py).
 """
 
+import logging
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
+from .classifier import Classifier
 from .models import Answer, ContentStatus, ModerationReview, Question, User, utcnow
+
+log = logging.getLogger(__name__)
 
 
 class Verdict(StrEnum):
@@ -82,10 +86,46 @@ def check_rules(text: str, author_created_at: datetime, now: datetime | None = N
     return RuleResult(Verdict.APPROVE)
 
 
-def apply_rules(db: Session, content: Question | Answer, text: str, author: User) -> None:
-    """Set the status of new content and, unless it's approved, record why."""
+def apply_rules(
+    db: Session, content: Question | Answer, text: str, author: User
+) -> ModerationReview | None:
+    """Set the status of new content and, unless it's approved, record why.
+
+    Returns the review if the content was escalated, so the caller can hand
+    it to the classifier once it's committed.
+    """
     result = check_rules(text, author.created_at)
     content.status = STATUS_FOR_VERDICT[result.verdict]
-    if result.verdict is not Verdict.APPROVE:
-        target = {"question": content} if isinstance(content, Question) else {"answer": content}
-        db.add(ModerationReview(reason=result.reason, **target))
+    if result.verdict is Verdict.APPROVE:
+        return None
+    target = {"question": content} if isinstance(content, Question) else {"answer": content}
+    review = ModerationReview(reason=result.reason, **target)
+    db.add(review)
+    return review if result.verdict is Verdict.ESCALATE else None
+
+
+LLM_STATUS = {"allow": ContentStatus.PUBLISHED, "remove": ContentStatus.REJECTED}
+
+
+def classify_review(session_factory: sessionmaker, classifier: Classifier, review_id: int) -> None:
+    """Background task: let the LLM decide an escalated post if it can."""
+    with session_factory() as db:
+        review = db.get(ModerationReview, review_id)
+        # A moderator may have got to it first.
+        if review is None or review.content.status != ContentStatus.PENDING:
+            return
+        try:
+            result = classifier(review.content_text, review.reason)
+        except Exception:
+            # e.g. the SDK raises TypeError when no credentials are configured.
+            # Whatever went wrong, the post just waits for a human.
+            log.exception("classifier: failed on review %s", review_id)
+            return
+        if result is None:
+            return
+        review.llm_verdict = result.verdict
+        review.llm_reason = result.reason[:500]
+        if result.verdict in LLM_STATUS:
+            review.content.status = LLM_STATUS[result.verdict]
+        db.commit()
+        log.info("classifier: review %s -> %s (%s)", review_id, result.verdict, result.reason)

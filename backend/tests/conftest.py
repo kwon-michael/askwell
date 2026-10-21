@@ -4,8 +4,22 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.db import Base, get_db
+from app.classifier import Classification, get_classifier
+from app.db import Base, get_db, get_session_factory
 from app.main import app
+
+
+class FakeClassifier:
+    """Stands in for Claude. Set .result to choose the verdict; None means
+    the classifier couldn't decide (as on an API error)."""
+
+    def __init__(self):
+        self.result: Classification | None = None
+        self.calls: list[tuple[str, str]] = []
+
+    def __call__(self, text: str, flagged_because: str) -> Classification | None:
+        self.calls.append((text, flagged_because))
+        return self.result
 
 
 @pytest.fixture
@@ -20,7 +34,12 @@ def db_session():
 
 
 @pytest.fixture
-def client(db_session):
+def classifier():
+    return FakeClassifier()
+
+
+@pytest.fixture
+def client(db_session, classifier):
     def override_get_db():
         db = db_session()
         try:
@@ -29,6 +48,9 @@ def client(db_session):
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_session_factory] = lambda: db_session
+    # Never call the real API from tests.
+    app.dependency_overrides[get_classifier] = lambda: classifier
     yield TestClient(app)
     app.dependency_overrides.clear()
 

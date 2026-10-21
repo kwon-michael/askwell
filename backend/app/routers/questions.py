@@ -1,12 +1,13 @@
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, selectinload, sessionmaker
 
-from ..db import get_db
+from ..classifier import Classifier, get_classifier
+from ..db import get_db, get_session_factory
 from ..models import Answer, ContentStatus, Question, User, Vote
-from ..moderation import apply_rules
+from ..moderation import apply_rules, classify_review
 from ..ranking import hot_score
 from ..schemas import AnswerOut, QuestionDetail, QuestionIn, QuestionSummary
 from ..security import get_current_user, get_optional_user
@@ -54,14 +55,19 @@ def list_questions(
 @router.post("", response_model=QuestionSummary, status_code=status.HTTP_201_CREATED)
 def create_question(
     data: QuestionIn,
+    background: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
+    classifier: Classifier | None = Depends(get_classifier),
+    session_factory: sessionmaker = Depends(get_session_factory),
 ):
     title, body = data.title.strip(), data.body.strip()
     q = Question(author_id=user.id, title=title, body=body)
     db.add(q)
-    apply_rules(db, q, f"{title}\n{body}", user)
+    review = apply_rules(db, q, f"{title}\n{body}", user)
     db.commit()
+    if review is not None and classifier is not None:
+        background.add_task(classify_review, session_factory, classifier, review.id)
     return QuestionSummary(
         id=q.id,
         title=q.title,

@@ -37,6 +37,8 @@ def to_item(review: ModerationReview) -> ReviewItem:
         created_at=review.created_at,
         reviewed_by=review.reviewer.username if review.reviewer else None,
         decided_at=review.decided_at,
+        llm_verdict=review.llm_verdict,
+        llm_reason=review.llm_reason,
     )
 
 

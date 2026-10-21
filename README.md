@@ -10,10 +10,7 @@ Built with FastAPI, PostgreSQL, and React + TypeScript.
 - [x] Answer ranking with time decay
 - [x] "Top answers this week" report (raw SQL)
 - [x] Tests + CI
-- [ ] Moderation pipeline
-  - [x] Rule filter
-  - [x] Human review queue
-  - [ ] LLM classifier between the two
+- [x] Moderation pipeline (rule filter, then LLM classifier, then human review queue)
 - [ ] A/B testing framework (hash-based bucketing, exposure and outcome events)
 - [ ] Deploy
 
@@ -41,6 +38,12 @@ The dev server proxies `/api/*` to the backend, so there's no CORS setup in deve
 Schema changes go through Alembic: edit `app/models.py`, then
 `alembic revision --autogenerate -m "..."` and review the generated file in
 `migrations/versions/`. A test fails if the models and migrations drift apart.
+
+The moderation classifier calls Claude, so it needs an Anthropic API key
+(`$env:ANTHROPIC_API_KEY = "sk-ant-..."` in PowerShell before starting uvicorn).
+Without one, everything still works: held posts just skip the classifier and go
+straight to the review queue. `MODERATION_MODEL` picks the model
+(default `claude-opus-5-5`); set it to an empty string to turn the classifier off.
 
 To see the review queue, make your account a moderator, then log in again
 (a **Review** link appears in the header):
@@ -78,6 +81,17 @@ blocked spam phrases and more than three links are rejected outright; links from
 accounts under a day old, mostly-capitals text, and long runs of one letter are
 held as `pending`; everything else is published. Authors are told when their post
 is held or rejected, but not which rule fired, so spammers can't tune against it.
+
+**LLM classifier.** Posts the rules hold go to Claude in a background task
+(the author gets an instant "under review" either way). It answers `allow`
+(published), `remove` (rejected, still overturnable from the queue), or `unsure`
+(left for a human, with the model's one-line note shown in the queue). Any failure
+(no key, timeout, API error, refusal) also leaves the post for a human, so the
+classifier can't publish anything by accident. The post is passed as delimited
+data and the prompt tells the model to ignore instructions inside it, and the
+response is constrained to a fixed schema. Only held posts are classified, which
+keeps cost low: roughly half a cent per held post on Opus 5.5 at low effort.
+See [`backend/app/classifier.py`](backend/app/classifier.py).
 
 **Review queue.** Anything the rules don't approve gets a `moderation_reviews` row
 with the reason. Moderators work through held content oldest-first and can also

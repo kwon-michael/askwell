@@ -77,6 +77,11 @@ export default function Review() {
             )}
             {item.kind === 'question' && <p className="title">{item.question_title}</p>}
             {item.body && <p className="body">{item.body}</p>}
+            {item.llm_verdict && (
+              <p className="meta">
+                Classifier said <strong>{item.llm_verdict}</strong>: {item.llm_reason}
+              </p>
+            )}
             <div className="actions">
               <button onClick={() => decide(item, 'approve')} disabled={busy === item.id}>
                 Approve

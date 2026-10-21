@@ -17,3 +17,8 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def get_session_factory() -> sessionmaker:
+    """For background tasks, which outlive the request's own session."""
+    return SessionLocal

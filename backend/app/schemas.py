@@ -83,6 +83,8 @@ class ReviewItem(BaseModel):
     created_at: datetime
     reviewed_by: str | None
     decided_at: datetime | None
+    llm_verdict: str | None
+    llm_reason: str | None
 
 
 class ReviewDecision(BaseModel):

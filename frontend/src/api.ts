@@ -55,6 +55,8 @@ export type ReviewItem = {
   created_at: string
   reviewed_by: string | null
   decided_at: string | null
+  llm_verdict: 'allow' | 'remove' | 'unsure' | null
+  llm_reason: string | null
 }
 
 export class ApiError extends Error {
