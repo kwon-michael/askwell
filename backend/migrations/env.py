@@ -4,7 +4,7 @@ from alembic import context
 from sqlalchemy import create_engine
 
 from app import models  # noqa: F401  (registers the tables on Base.metadata)
-from app.config import DATABASE_URL
+from app.config import MIGRATION_DATABASE_URL
 from app.db import Base
 
 config = context.config
@@ -12,7 +12,7 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # Tests point Alembic at a throwaway SQLite file by setting sqlalchemy.url.
-url = config.get_main_option("sqlalchemy.url") or DATABASE_URL
+url = config.get_main_option("sqlalchemy.url") or MIGRATION_DATABASE_URL
 
 
 def run_migrations_offline() -> None:

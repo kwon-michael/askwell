@@ -1,7 +1,7 @@
 import os
 
 DEV_JWT_SECRET = "dev-only-secret-change-me-in-production"
-
+LOCAL_DATABASE_URL = "postgresql+psycopg://askwell:askwell@localhost:5434/askwell"
 
 
 def sqlalchemy_url(url: str) -> str:
@@ -14,8 +14,14 @@ def sqlalchemy_url(url: str) -> str:
 
 
 APP_ENV = os.environ.get("APP_ENV", "development")
-DATABASE_URL = sqlalchemy_url(
-    os.environ.get("DATABASE_URL", "postgresql+psycopg://askwell:askwell@localhost:5434/askwell")
+DATABASE_URL = sqlalchemy_url(os.environ.get("DATABASE_URL", LOCAL_DATABASE_URL))
+# Neon gives two URLs: DATABASE_URL goes through its PgBouncer pooler (the app
+# uses it), DATABASE_URL_UNPOOLED is a direct connection. Migrations need the
+# direct one, since transaction-mode pooling breaks session-level work.
+# Locally there's only one database URL, so fall back to it.
+MIGRATION_DATABASE_URL = sqlalchemy_url(
+    os.environ.get("DATABASE_URL_UNPOOLED")
+    or os.environ.get("DATABASE_URL", LOCAL_DATABASE_URL)
 )
 JWT_SECRET = os.environ.get("JWT_SECRET", DEV_JWT_SECRET)
 if APP_ENV == "production" and JWT_SECRET == DEV_JWT_SECRET:

@@ -40,3 +40,17 @@ def test_client_side_routes_fall_back_to_index(prod_client):
 )
 def test_hosted_database_urls_use_psycopg3(given, expected):
     assert sqlalchemy_url(given) == expected
+
+
+@pytest.mark.parametrize(
+    "url, prepared",
+    [
+        ("postgresql+psycopg://u:p@ep-cool-1-pooler.us-east-2.aws.neon.tech/db", False),
+        ("postgresql+psycopg://u:p@ep-cool-1.us-east-2.aws.neon.tech/db", True),
+        ("postgresql+psycopg://askwell:askwell@localhost:5434/askwell", True),
+    ],
+)
+def test_prepared_statements_off_behind_the_pooler(url, prepared):
+    from app.db import connect_args
+
+    assert ("prepare_threshold" not in connect_args(url)) is prepared

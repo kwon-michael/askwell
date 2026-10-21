@@ -8,7 +8,9 @@ services:
     healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
-        sync: false # paste the Neon connection string when prompted
+        sync: false # Neon's pooled connection string (host ends in -pooler)
+      - key: DATABASE_URL_UNPOOLED
+        sync: false # Neon's direct connection string, used for migrations
       - key: JWT_SECRET
         generateValue: true
       - key: MODERATION_MODEL
