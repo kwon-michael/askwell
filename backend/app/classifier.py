@@ -21,6 +21,8 @@ log = logging.getLogger(__name__)
 # safety classifier declines the request, the API retries it on another model
 # instead of returning a refusal. Moderation input is exactly the kind of text
 # that can trip those classifiers, so this matters more here than usual.
+# Haiku (the default) has no server-side fallback; a refusal there just means
+# the post goes to a human, which is the right outcome anyway.
 FALLBACK_MODELS = {"claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5"}
 FALLBACK_BETA = "server-side-fallback-2026-07-01"
 

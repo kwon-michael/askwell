@@ -43,7 +43,7 @@ The moderation classifier calls Claude, so it needs an Anthropic API key
 (`$env:ANTHROPIC_API_KEY = "sk-ant-..."` in PowerShell before starting uvicorn).
 Without one, everything still works: held posts just skip the classifier and go
 straight to the review queue. `MODERATION_MODEL` picks the model
-(default `claude-opus-5-5`); set it to an empty string to turn the classifier off.
+(default `claude-haiku-5-5`); set it to an empty string to turn the classifier off.
 
 To see the review queue, make your account a moderator, then log in again
 (a **Review** link appears in the header):
@@ -89,8 +89,9 @@ is held or rejected, but not which rule fired, so spammers can't tune against it
 (no key, timeout, API error, refusal) also leaves the post for a human, so the
 classifier can't publish anything by accident. The post is passed as delimited
 data and the prompt tells the model to ignore instructions inside it, and the
-response is constrained to a fixed schema. Only held posts are classified, which
-keeps cost low: roughly half a cent per held post on Opus 5.5 at low effort.
+response is constrained to a fixed schema. It runs on Claude Haiku 5.5 at low
+effort: this is a short allow/remove/unsure call, and only held posts are
+classified, so cost is a tiny fraction of a cent per held post.
 See [`backend/app/classifier.py`](backend/app/classifier.py).
 
 **Review queue.** Anything the rules don't approve gets a `moderation_reviews` row
