@@ -3,8 +3,7 @@
 A Q&A community app: people ask questions, write answers, and upvote the good ones.
 Built with FastAPI, PostgreSQL, and React + TypeScript.
 
-**Live demo: https://askwell-caav.onrender.com** (free tier: the first visit after
-a quiet spell can take up to a minute while the server wakes up)
+**Live demo: https://askwell-caav.onrender.com** App is deployed on the free tier of render so please allow 1 minute for it to load.
 
 ## Status
 
